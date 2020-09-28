@@ -209,7 +209,7 @@ def build_average_response_df(data_dict, foldername,frame_before=150,frame_after
             
 def get_responsiveness_data(session, window_size=1, behavior_condition='active'):
     '''
-    build a dataframe of integrals of activity in a pre/post stimulus window for every stimulus
+    build a dataframe of integrals and means of activity in a pre/post stimulus window for every stimulus
     '''
 
     responsiveness_data = []
@@ -263,7 +263,7 @@ def get_responsiveness_data(session, window_size=1, behavior_condition='active')
 
 def build_responsiveness_summary(session,window_size=1):
     '''
-    build a dataframe of containing summary data of integrals of activity in a pre/post stimulus window for every cell
+    build a dataframe of containing summary data of integrals and means of activity in a pre/post stimulus window for every cell
     '''
     responsiveness_summary = []
     responsiveness_data = session.responsiveness_data
@@ -322,7 +322,7 @@ def build_responsiveness_summary(session,window_size=1):
     return pd.DataFrame(responsiveness_summary)[cols_to_return]
 
 
-def get_cells_with_significant_responses(session, significance_level=0.05, metric='p-value_on_integrals'):
+def get_cells_with_significant_responses(session, significance_level=0.05, metric='p-value_on_means'):
     '''
     get cells from the `responsiveness_summary` dataframe that had a significant response to any stimulus condition
     '''
@@ -420,7 +420,7 @@ def get_sign(v):
     elif v<0:
         return 'negative'
         
-def plot_cell_responses(session,cell_id,metric='p-value_on_integrals'):
+def plot_cell_responses(session,cell_id,metric='p-value_on_means'):
     rs = session.responsiveness_summary
     fig,ax=plt.subplots(1,3,figsize=(12,5),sharey=True,sharex=True)
     for col, stim_condition in enumerate(['visual','auditory','auditory_and_visual']):
@@ -438,7 +438,7 @@ def plot_cell_responses(session,cell_id,metric='p-value_on_integrals'):
             row['cell_id'], 
             row['condition'], 
             row[metric], 
-            get_sign(row['direction_of_effect_on_integrals'])
+            get_sign(row['direction_of_effect_on_means'])
         ))
         ax[col].axvline(0,color='k',zorder=-1,linewidth=3,alpha=0.25)
         ax[col].set_xlabel('time from stimulus (s)')
@@ -447,7 +447,7 @@ def plot_cell_responses(session,cell_id,metric='p-value_on_integrals'):
     fig.tight_layout()
     return fig,ax
         
-def plot_significance_vs_window_size(mouse_id,cell_id,session):
+def plot_significance_vs_window_size(mouse_id,cell_id,session,metric='mean'):
     '''
     recalculate significance as a function of window size. Plot results
     '''
@@ -472,14 +472,21 @@ def plot_significance_vs_window_size(mouse_id,cell_id,session):
 
         pre_stim_integrals = np.empty(len(dat_all['all_traces']))
         post_stim_integrals = np.empty(len(dat_condition['all_traces']))
+        pre_stim_means = np.empty(len(dat_all['all_traces']))
+        post_stim_means = np.empty(len(dat_condition['all_traces']))
 
         for idx in range(len(dat_all['all_traces'])):
             pre_stim_integrals[idx] = np.trapz(dat_all['all_traces'][idx][pre_stim_indices])
+            pre_stim_means[idx] = np.mean(dat_all['all_traces'][idx][pre_stim_indices])
 
         for idx in range(len(dat_condition['all_traces'])):
             post_stim_integrals[idx] = np.trapz(dat_condition['all_traces'][idx][post_stim_indices])
+            post_stim_means[idx] = np.mean(dat_condition['all_traces'][idx][post_stim_indices])
 
-        res = stats.ttest_ind(pre_stim_integrals,post_stim_integrals)
+        if metric == 'mean':
+            res = stats.ttest_ind(pre_stim_means,post_stim_means)
+        elif metric == 'integral':
+            res = stats.ttest_ind(pre_stim_integrals,post_stim_integrals)
         p_vals[ii] = res.pvalue
 
     fig,ax=plt.subplots(figsize=(15,3))
