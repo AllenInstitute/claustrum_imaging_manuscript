@@ -346,25 +346,42 @@ def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200):
         foldername = entry['foldername']
         cell_id = entry['cell_id']
 
+        tdf = []
         for col,event in enumerate(['hit','fa','miss','cr']):
             data_dict = data[foldername]
             session = data_dict['session']
             events = session.event_dict['{}_events'.format(event)] #data_dict['{}_events'.format(event)]
             dat = get_responses(session,cell_id,events,frame_before=frame_before,frame_after=frame_after)
+            for ii in range(np.shape(dat['all_traces'])[0]):
+                df = pd.DataFrame({'t':dat['t'],'z_scored_activity':dat['all_traces'][ii]})
+                df['condition'] = event
+                df['repeat_number'] = ii
+                df['cell_id'] = cell_id
+                df['experiment'] = foldername
+                tdf.append(df)
+        tdf = pd.concat(tdf)
 
-            pf.plot_event_triggered_timeseries(dat,foreground_color=colors[event],ax=ax[row][col])
+        for col,event in enumerate(['hit','fa','miss','cr']):
+            # pf.plot_event_triggered_timeseries(dat,foreground_color=colors[event],ax=ax[row][col])
+            sns.lineplot(
+                data = tdf.query('condition == "{}"'.format(event)),
+                x='t',
+                y='z_scored_activity',
+                ax = ax[row][col],
+                color=colors[event],
+            )
             ax[row][col].axvline(0,color='k',alpha=0.5,zorder=-np.inf,linewidth=3)
-            ax[row][col].set_ylim(-5,15.5)
-
+            ax[row][col].set_ylim(-2.5,5)
+            ax[row][col].set_xlim(-2,6)
             ax[row][col].axis('off')
 
     for col,event_type in enumerate(['Hit\nTrials','False Alarm\nTrials','Miss\nTrials','Correct Rejection\nTrials']):
         ax[0][col].set_title(event_type,rotation=0,ha='center')
 
-    ax[3][0].plot((0,0),(-4.5,0.5),color='k',linewidth=2)
-    ax[3][0].plot((0,0+5),(-4.5,-4.5),color='k',linewidth=2)
-    ax[3][0].text(1,-7.5,'2 s')
-    ax[3][0].text(-1,-3,'5 SD',ha='right')
+    ax[row][0].plot((-1.9,-1.9),(-1.4,4.6),color='k',linewidth=2)
+    ax[row][0].plot((-1.9,-1.9+2),(-1.4,-1.4),color='k',linewidth=2)
+    ax[row][0].text(-1,-2.25,'2 s',ha='center',va='top')
+    ax[row][0].text(-2.25,1,'5 SD',ha='right')
 
     sns.despine()
     plt.subplots_adjust(wspace=0.05)
