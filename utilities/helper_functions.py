@@ -514,3 +514,30 @@ def plot_significance_vs_window_size(mouse_id,cell_id,session,metric='mean'):
     ax.set_title('significance vs. window size for cell {}\n(points below 0.05 in red)'.format(cell_id))
     fig.tight_layout()
     return fig,ax
+
+
+def single_cell_heatmap(session, cell_id, events, ax=None, cbar=True, title=''):
+    '''
+    make a heatmap for a single cell where each line is a trial
+    '''
+    if ax is None:
+        fig,ax = plt.subplots(1,1,figsize=(10,4),sharex=True,sharey=True)
+
+
+    dat = get_responses(
+        session,
+        cell_id,
+        events
+    )
+    sns.heatmap(
+        dat['all_traces'],
+        ax=ax,
+        vmin=-5,
+        vmax=5,
+        cbar=cbar,
+        cmap='seismic',
+        cbar_kws = {'label':'z-scored activity'},
+    )
+    ax.set_title(title)
+    ax.set_xticklabels([dat['t'][int(i)] for i in ax.get_xticks()]);
+    ax.axvline(len(dat['t'])/2,color='white')
