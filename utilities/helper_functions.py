@@ -275,20 +275,20 @@ def build_responsiveness_summary(session,window_size=1):
         for col,stim_condition in enumerate(stim_conditions):
 
             res_ints = stats.ttest_ind(
-                cell_data['pre_stim_integral'],
-                cell_data.query('stim_condition == @stim_condition')['post_stim_integral']
+                cell_data['pre_stim_integral'].dropna(),
+                cell_data.query('stim_condition == @stim_condition')['post_stim_integral'].dropna()
             )
             
             res_means = stats.ttest_ind(
-                cell_data['pre_stim_mean'],
-                cell_data.query('stim_condition == @stim_condition')['post_stim_mean']
+                cell_data['pre_stim_mean'].dropna(),
+                cell_data.query('stim_condition == @stim_condition')['post_stim_mean'].dropna()
             )
             
-            pre_stim_integral_mean = cell_data['pre_stim_integral'].mean()
-            post_stim_integral_mean = cell_data.query('stim_condition == @stim_condition')['post_stim_integral'].mean()
+            pre_stim_integral_mean = cell_data['pre_stim_integral'].dropna().mean()
+            post_stim_integral_mean = cell_data.query('stim_condition == @stim_condition')['post_stim_integral'].dropna().mean()
             
-            pre_stim_mean_all = cell_data['pre_stim_mean'].mean()
-            post_stim_mean_all = cell_data.query('stim_condition == @stim_condition')['post_stim_mean'].mean()
+            pre_stim_mean_all = cell_data['pre_stim_mean'].dropna().mean()
+            post_stim_mean_all = cell_data.query('stim_condition == @stim_condition')['post_stim_mean'].dropna().mean()
             
             responsiveness_summary.append({
                 'cell_id':cell_id,
