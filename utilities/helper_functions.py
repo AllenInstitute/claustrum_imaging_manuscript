@@ -331,7 +331,7 @@ def get_cells_with_significant_responses(session, significance_level=0.05, metri
     return significant_responses.cell_id.unique()
 
 
-def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200):
+def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200, xlim=(-2,6), ylim=(-2,3)):
     
     colors = {
         'hit':'darkgreen',
@@ -371,17 +371,31 @@ def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200):
                 color=colors[event],
             )
             ax[row][col].axvline(0,color='k',alpha=0.5,zorder=-np.inf,linewidth=3)
-            ax[row][col].set_ylim(-2.5,5)
-            ax[row][col].set_xlim(-2,6)
+            ax[row][col].set_ylim(ylim[0], ylim[1])
+            ax[row][col].set_xlim(xlim[0], xlim[1])
             ax[row][col].axis('off')
 
     for col,event_type in enumerate(['Hit\nTrials','False Alarm\nTrials','Miss\nTrials','Correct Rejection\nTrials']):
         ax[0][col].set_title(event_type,rotation=0,ha='center')
 
-    ax[row][0].plot((-1.9,-1.9),(-1.4,4.6),color='k',linewidth=2)
-    ax[row][0].plot((-1.9,-1.9+2),(-1.4,-1.4),color='k',linewidth=2)
-    ax[row][0].text(-1,-2.25,'2 s',ha='center',va='top')
-    ax[row][0].text(-2.25,1,'5 SD',ha='right')
+    scalebar_x_corner = -1.9
+    scalebar_y_corner = -0.9
+    scalebar_height = 5
+    scalebar_width = 2
+    ax[row][0].plot(
+        (scalebar_x_corner,scalebar_x_corner),
+        (scalebar_y_corner,scalebar_y_corner+scalebar_height),
+        color='k',
+        linewidth=2
+    )
+    ax[row][0].plot(
+        (scalebar_x_corner,scalebar_x_corner+scalebar_width),
+        (scalebar_y_corner,scalebar_y_corner),
+        color='k',
+        linewidth=2
+    )
+    ax[row][0].text(-1,-1.25,'2 s',ha='center',va='top')
+    ax[row][0].text(-1.25,1,'5 SD',ha='right')
 
     sns.despine()
     plt.subplots_adjust(wspace=0.05)
