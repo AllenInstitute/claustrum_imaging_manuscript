@@ -11,6 +11,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import platform
 import os
 import pandas as pd
+import json
 
 from visual_behavior_research.projects.tbd.session import Session
 
@@ -28,7 +29,42 @@ from visual_behavior_research.projects.tbd.Inscopix.pipeline import make_cell_ma
 from visual_behavior.translator.foraging import data_to_change_detection_core
 from visual_behavior.translator.core import create_extended_dataframe
 
-def load_passive_session(data_path,load_cached_traces_table=True):
+class Session(object):
+    '''
+    reconstructs a session object from saved data in github repo
+    A session object contains data from a single recording session as attributes
+    only necessary data for analyses are stored to github
+    '''
+    def __init__(self, mouse, session_type):
+        self.data_path = os.path.join(os.path.split(os.getcwd())[0],'data')
+        self.session_type_folder = os.path.join(self.data_path,'{}_sessions'.format(session_type))
+        self.mouse_folder = os.path.join(self.session_type_folder, mouse)
+        self.cell_folder = os.path.join(self.mouse_folder, 'cell_images')
+        self.session_type = session_type
+        
+        self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
+        if session_type == 'active':
+            self.licks = pd.read_csv(os.path.join(self.mouse_folder, 'licks.csv'))
+            self.rewards = pd.read_csv(os.path.join(self.mouse_folder, 'rewards.csv'))
+            self.visual_stimuli = pd.read_csv(os.path.join(self.mouse_folder, 'visual_stimuli.csv'))
+            self.event_dict = load_json(os.path.join(self.mouse_folder, 'events.json'))
+            
+        self.filtered_cell_ids = pd.read_csv(os.path.join(self.mouse_folder, 'filtered_cell_ids.csv'))['cell_id'].values
+        self.filtered_cell_count = len(self.filtered_cell_ids)
+        
+        self.traces = pd.read_csv(os.path.join(self.mouse_folder, 'traces.csv'))
+        self.filtered_traces = pd.read_csv(os.path.join(self.mouse_folder, 'filtered_traces.csv'))
+        self.metrics = pd.read_csv(os.path.join(self.mouse_folder, 'metrics.csv')).set_index('cellName')
+        self.cell_images = load_cell_images(os.path.join(self.mouse_folder, 'cell_images'))
+        
+
+def load_session(mouse_id, session_type):
+    '''
+    load a session as a Session object
+    '''
+    return Session(mouse_id, session_type)
+
+def load_passive_session_from_disk(data_path,load_cached_traces_table=True):
     '''
     load passive stimulus session, add a column denoting the closest frame in the Inscopix video
     this depends on allen institute internal packages/databases
@@ -42,7 +78,7 @@ def load_passive_session(data_path,load_cached_traces_table=True):
 
     return session
 
-def load_active_session(data_path,load_cached_traces_table=True):
+def load_active_session_from_disk(data_path,load_cached_traces_table=True):
     '''
     load active behavior session, add columns denoting the closest frame in the Inscopix video
     this depends on allen institute internal packages/databases
@@ -78,6 +114,31 @@ def load_active_session(data_path,load_cached_traces_table=True):
     session.event_dict = define_behavior_events(session)
     
     return session
+
+
+def save_cell_images(session, savepath, force_overwrite=True):
+    '''
+    each cell image is a 3-channel array, but all three channels are identical
+    therefore, only save the 0-indexed channel to avoid redundancy on disk
+    '''
+    for cell_id in session.cell_images.keys():
+        filename = os.path.join(savepath, '{}.npy'.format(cell_id))
+        if not os.path.exists(filename) and not force_overwrite:
+            np.save(
+                filename,
+                session.cell_images[cell_id][0] # the array is in a single-element list
+            )
+            
+def load_cell_images(loadpath):
+    '''
+    load each cell image for a given session
+    '''
+    cell_images = {}
+    for fn in os.listdir(loadpath):
+        filename = os.path.join(loadpath, fn)
+        cell_id = fn.split('.npy')[0]
+        cell_images[cell_id] = np.load(filename)
+    return cell_images
     
 def define_behavior_events(session):
     '''
@@ -147,6 +208,25 @@ def get_genotype_shorthand(genotype):
         return 'Gnb4-Cre;AAB-GCaMPs'
     else:
         return 'unknown'
+    
+def get_gender(mouse_id):
+    '''get mouse gender from internal labtracks database'''
+    mouse_info = vbu.query_labtracks(mouse_id)
+    return mouse_info['sex']
+
+def make_folder(path):
+    '''make a folder if it does not already exist'''
+    if not os.path.exists(path):
+        os.mkdir(path)
+        
+def save_json(dictionary, filename):
+    with open(filename, "w") as outfile:  
+        json.dump(dictionary, outfile)
+        
+def load_json(filename):
+    with open(filename, "r") as infile:  
+        dictionary = json.load(infile)
+    return dictionary
 
 def find_nearest_index(array,value):
     '''
@@ -291,7 +371,7 @@ def build_average_response_df(data_dict, foldername,frame_before=150,frame_after
         'fa':pd.DataFrame({'t':np.linspace(-frame_before*0.05,(frame_after-1)*0.05,frame_before+frame_after)}),
         'cr':pd.DataFrame({'t':np.linspace(-frame_before*0.05,(frame_after-1)*0.05,frame_before+frame_after)}),
     }
-    for row,cell_id in enumerate(session.filtered_cell_IDs):
+    for row,cell_id in enumerate(session.filtered_cell_ids):
         
         for col,condition in enumerate(['hit','miss','fa','cr']):
 
@@ -314,7 +394,7 @@ def get_responsiveness_data(session, window_size=1, behavior_condition='active')
     elif behavior_condition == 'passive':
         conditions = ['visual','auditory','auditory_and_visual']
 
-    for row,cell_id in enumerate(session.filtered_cell_IDs):
+    for row,cell_id in enumerate(session.filtered_cell_ids):
         for col,stim_condition in enumerate(conditions):
 
             if behavior_condition == 'passive':
@@ -360,7 +440,7 @@ def build_responsiveness_summary(session,window_size=1):
     responsiveness_summary = []
     responsiveness_data = session.responsiveness_data
     stim_conditions = responsiveness_data['stim_condition'].unique()
-    for row,cell_id in enumerate(session.filtered_cell_IDs):
+    for row,cell_id in enumerate(session.filtered_cell_ids):
         cell_data = responsiveness_data[
             (responsiveness_data['cell_id']==cell_id)
         ]
@@ -503,7 +583,7 @@ def plot_cell(session,cell,timeseries_type='filtered'):
         plt.subplot2grid((1, 3), (0, 1), colspan=2)
     ]
 
-    ax[0].imshow(session.series_cs.cell_images[cell][0],cmap='gray')
+    ax[0].imshow(session.cell_images[cell],cmap='gray')
     ax[0].axis('off')
     ax[0].set_title('cell image')
     
