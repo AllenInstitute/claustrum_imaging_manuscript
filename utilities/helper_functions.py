@@ -16,7 +16,6 @@ import json
 from visual_behavior_research.projects.tbd.session import Session
 
 import visual_behavior_research.projects.tbd.utilities as tbdu
-from visual_behavior_research.projects.tbd.Inscopix.series import SeriesCellSet
 import visual_behavior_research.plotting as vbp
 import visual_behavior_research.plotting.dro_plots as pf
 import visual_behavior_research.utilities as vbu
@@ -247,7 +246,7 @@ def find_nearest_value(array,value):
 def find_nearest_fluorescence_frame(behavior_frame,sync_data,temporal_downsample_factor=1.0,largest_allowable_difference=1./20,display_lag=0.035):
     behavior_event_time = sync_data['behavior_vsync'][int(behavior_frame)]+display_lag
     F_frame_times = sync_data['fluorescence_camera']
-    nearest_F_frame = tbdu.find_nearest_index(behavior_event_time,F_frame_times)/temporal_downsample_factor
+    nearest_F_frame = find_nearest_index(behavior_event_time,F_frame_times)/temporal_downsample_factor
     
     if abs(behavior_event_time-F_frame_times[int(nearest_F_frame)]) < largest_allowable_difference:
         return nearest_F_frame
@@ -329,7 +328,7 @@ def get_F_frame(behavior_frame,sync_data,threshold=0.05):
         behavior_time = sync_data['behavior_vsync'][behavior_frame]
     else:
         return None
-    F_frame = tbdu.find_nearest_index(behavior_time,sync_data['fluorescence_camera'])
+    F_frame = find_nearest_index(behavior_time,sync_data['fluorescence_camera'])
     
     #note: this deals with events that come during times when the camera wasn't recording
     if abs(sync_data['fluorescence_camera'][F_frame]-behavior_time) < threshold:
@@ -348,7 +347,7 @@ def get_responses(session,cell_id,events,frame_before=100,frame_after=100, ):
     Uses the `event_triggered_average` function to get responses relative to a given event
     '''
     
-    dat = tbdu.event_triggered_average(
+    dat = event_triggered_average(
             session.filtered_traces[cell_id].values,
             events=events,
             frame_before=frame_before,
@@ -356,11 +355,70 @@ def get_responses(session,cell_id,events,frame_before=100,frame_after=100, ):
             sampling_rate=20, #Hz
             norm_frames=50,
             output='f',
-            progressbar=False
         )
 
     
     return dat
+
+def event_triggered_average(data, events, frame_before, frame_after, norm_frames=50, 
+                            sampling_rate=100, output='F'):
+    '''Extracts average activity in an ROI relative to event frames'''
+    events = list(events)
+    # preallocate an array for all of the timeseries
+    all_traces = np.empty((len(events), int(frame_before+frame_after)))*np.NAN
+
+    # create a time vector based on the requested frames and sampling rate
+    t = np.linspace(-frame_before,
+                    frame_after-1,
+                    frame_before+frame_after)/sampling_rate
+
+    # for each event, calculate the timeseries of the df values inside the mask
+    for E in events:
+        try:
+            if np.isnan(E) == False:
+                E = int(E)
+                first_frame = int(E-frame_before)
+                last_frame = int(E+frame_after)
+
+                F = data[np.maximum(first_frame, 0):np.minimum(
+                    last_frame, np.shape(data)[0])]
+
+                # get F0, defined as the average of N frames before the event
+                first_norm_frame = int(np.max((E-norm_frames, 0)))
+                F0 = np.mean(data[first_norm_frame:E])
+
+                # calculate df
+                if output.lower() == 'df':
+                    response = F - F0
+                elif output.lower() == 'f':
+                    response = F
+                elif output.lower() == 'dff':
+                    response = (F - F0)/F0
+
+                masked_data = response
+
+                # put the timeseries in the proper row of the preallocated array
+                # Pad with nans if the range of requested frames goes beyond the bounds of the movie
+                if first_frame < 0:
+                    pad = np.empty(abs(E-frame_before))*np.nan
+                    all_traces[events.index(E), :] = np.hstack(
+                        (pad, masked_data.flatten()))
+                elif last_frame > np.shape(data)[0]:
+                    pad = np.empty(abs(last_frame-np.shape(data)[0]))*np.nan
+                    all_traces[events.index(E), :] = np.hstack(
+                        (masked_data.flatten(), pad))
+                else:
+                    all_traces[events.index(E), :] = masked_data[:np.shape(
+                        all_traces)[1]].flatten()
+
+        except Exception as e:
+            print("failed on {}".format(E))
+            print(e)
+    return {'t': t,
+            'trace_mean': np.nanmean(all_traces, axis=0),
+            'trace_std': np.nanstd(all_traces, axis=0),
+            'trace_median': np.median(all_traces, axis=0),
+            'all_traces': all_traces}
 
 def build_average_response_df(data_dict, foldername,frame_before=150,frame_after=150):
     session = data_dict['session']
@@ -398,7 +456,7 @@ def get_responsiveness_data(session, window_size=1, behavior_condition='active')
         for col,stim_condition in enumerate(conditions):
 
             if behavior_condition == 'passive':
-                passive_stim_trials = session.behavior_core_data['trials']
+                passive_stim_trials = session.trials
                 df = passive_stim_trials[passive_stim_trials['stim_type']==stim_condition]
                 events = df['nearest_F_frame']
             elif behavior_condition == 'active':
@@ -572,6 +630,31 @@ def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200, xlim=(-2
     sns.despine()
     plt.subplots_adjust(wspace=0.05)
     
+    
+def plot_event_triggered_timeseries(data_dict, ax=None, background_color='gray', foreground_color='black', 
+                                    background_alpha=0.25, foreground_linewidth=3, 
+                                    ylabel="", xlabel="",title="", title_fontsize=18):
+    '''
+    assumes a data dictionary of the format output by utilities.event_triggered_average
+    '''
+    if ax == None:
+        fig, ax = plt.subplots(1, 1)
+
+    for trace in data_dict['all_traces']:
+        ax.plot(data_dict['t'], trace,
+                color=background_color, alpha=background_alpha)
+    ax.plot(data_dict['t'], data_dict['trace_mean'],
+            color=foreground_color, alpha=1, linewidth=foreground_linewidth)
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=title_fontsize)
+
+    if 'fig' in dir():
+        return fig, ax
+    else:
+        return ax
+    
 def plot_cell(session,cell,timeseries_type='filtered'):
     '''
     plot cell image and timeseries for a given cell in a session
@@ -628,7 +711,7 @@ def plot_cell_responses(session,cell_id,metric='p-value_on_means'):
     fig,ax=plt.subplots(1,3,figsize=(12,5),sharey=True,sharex=True)
     for col, stim_condition in enumerate(['visual','auditory','auditory_and_visual']):
         row = rs.query("cell_id == '{}' and condition == '{}'".format(cell_id, stim_condition)).iloc[0]
-        passive_stim_trials = session.behavior_core_data['trials']
+        passive_stim_trials = session.trials
         if type(stim_condition) == str:
             df = passive_stim_trials[passive_stim_trials['stim_type'] == stim_condition]
         elif type(stim_condition) == list:
@@ -654,7 +737,7 @@ def plot_significance_vs_window_size(mouse_id,cell_id,session,metric='mean'):
     '''
     recalculate significance as a function of window size. Plot results
     '''
-    passive_stim_trials = session[mouse_id].behavior_core_data['trials']
+    passive_stim_trials = session[mouse_id].trials
 
     dat_all = get_responses(
         session[mouse_id],
