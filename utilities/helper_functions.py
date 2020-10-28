@@ -13,7 +13,7 @@ import os
 import pandas as pd
 import json
 
-from visual_behavior_research.projects.tbd.session import Session
+from visual_behavior_research.projects.tbd.session import Session as tbd_Session
 
 import visual_behavior_research.projects.tbd.utilities as tbdu
 import visual_behavior_research.plotting as vbp
@@ -68,7 +68,7 @@ def load_passive_session_from_disk(data_path,load_cached_traces_table=True):
     load passive stimulus session, add a column denoting the closest frame in the Inscopix video
     this depends on allen institute internal packages/databases
     '''
-    session = Session(data_path, load_cached_traces_table=load_cached_traces_table)
+    session = tbd_Session(data_path, load_cached_traces_table=load_cached_traces_table)
 
     passive_stim_trials = session.behavior_core_data['trials']
     passive_stim_trials['nearest_F_frame'] = passive_stim_trials['startframe'].map(
@@ -83,7 +83,7 @@ def load_active_session_from_disk(data_path,load_cached_traces_table=True):
     this depends on allen institute internal packages/databases
     '''
     cached_data = pd.read_pickle(os.path.join(data_path,'cached_data_2019.10.04.pkl'))
-    session = Session(
+    session = tbd_Session(
         data_path, 
         load_cached_traces_table = True,
         behavior_pkl_filename = which_pkl(cached_data['filename_dict'])
