@@ -28,9 +28,10 @@ from visual_behavior_research.projects.tbd.Inscopix.pipeline import make_cell_ma
 from visual_behavior.translator.foraging import data_to_change_detection_core
 from visual_behavior.translator.core import create_extended_dataframe
 
-def load_session(data_path,load_cached_traces_table=True):
+def load_passive_session(data_path,load_cached_traces_table=True):
     '''
-    load session, add a column denoting the closest frame in the Inscopix video
+    load passive stimulus session, add a column denoting the closest frame in the Inscopix video
+    this depends on allen institute internal packages/databases
     '''
     session = Session(data_path, load_cached_traces_table=load_cached_traces_table)
 
@@ -40,6 +41,97 @@ def load_session(data_path,load_cached_traces_table=True):
         )
 
     return session
+
+def load_active_session(data_path,load_cached_traces_table=True):
+    '''
+    load active behavior session, add columns denoting the closest frame in the Inscopix video
+    this depends on allen institute internal packages/databases
+    '''
+    cached_data = pd.read_pickle(os.path.join(data_path,'cached_data_2019.10.04.pkl'))
+    session = Session(
+        data_path, 
+        load_cached_traces_table = True,
+        behavior_pkl_filename = which_pkl(cached_data['filename_dict'])
+    )
+    
+    trials = session.behavior_core_data['extended_trials']
+    
+    rewards = session.behavior_core_data['rewards']
+    # rebase time on sync
+    rewards['time'] = session.sync_data['behavior_vsync'][rewards['frame'].values]
+    
+    licks = session.behavior_core_data['licks']
+    # rebase time on sync
+    licks['time'] = session.sync_data['behavior_vsync'][licks['frame'].values]
+    licks['nearest_F_frame'] = licks['frame'].map(lambda x:get_F_frame(int(x), session.sync_data))
+    licks['time_since_last_lick'] = licks['time'] - licks['time'].shift()
+    licks['nearest_reward']=licks['time'].map(lambda x:nearest_reward(x,rewards))
+    
+    visual_stimuli = session.behavior_core_data['visual_stimuli']
+    # rebase time on sync
+    visual_stimuli['time'] = session.sync_data['behavior_vsync'][visual_stimuli['frame'].values]
+    visual_stimuli['nearest_lick'] = visual_stimuli['time'].map(lambda x: nearest_lick(x,licks))
+    visual_stimuli['change'] = visual_stimuli['image_name'] != visual_stimuli['image_name'].shift()
+    visual_stimuli['nearest_F_frame'] = visual_stimuli['frame'].map(
+        lambda x: get_F_frame(int(x), session.sync_data)
+    )
+    session.event_dict = define_behavior_events(session)
+    
+    return session
+    
+def define_behavior_events(session):
+    '''
+    build an event dictionary for a given session denoting frame numbers for:
+        hit: responses after stimulus changes
+        miss: lack of response after stimulus changes
+        false_alarm (fa): responses after stimulus non-changes
+        correct_reject (cr): lack of response after stimulus non-changes
+    '''
+    event_dict = {}
+    licks = session.behavior_core_data['licks']
+    visual_stimuli = session.behavior_core_data['visual_stimuli']
+    trials = session.behavior_core_data['extended_trials']
+    rewards = session.behavior_core_data['rewards']
+    
+    hit_licks = licks[
+        (licks['nearest_reward']<0.1)
+        &(licks['time_since_last_lick']>2.25)
+        &(~np.isnan(licks['nearest_F_frame']))
+    ]
+    
+    event_dict['hit_events'] = []
+    for idx,row in hit_licks.iterrows():
+        lick_time = row['time']
+        event_dict['hit_events'].append(visual_stimuli.query('time < @lick_time')['nearest_F_frame'].iloc[-1])
+
+    fa_licks = licks[
+        (licks['nearest_reward']>2)
+        &(licks['time_since_last_lick']>2.25)
+        &(~np.isnan(licks['nearest_F_frame']))
+    ]
+    
+    event_dict['fa_events'] = []
+    for idx,row in fa_licks.iterrows():
+        lick_time = row['time']
+        event_dict['fa_events'].append(visual_stimuli.query('time < @lick_time')['nearest_F_frame'].iloc[-1])
+
+    event_dict['miss_events'] = trials.query('response_type == "MISS"')['change_frame'].map(
+        lambda x:get_F_frame(int(x),session.sync_data)
+    )
+    event_dict['miss_events'] = event_dict['miss_events'][pd.notnull(event_dict['miss_events'])]
+
+    cr_events = visual_stimuli.query('change == False and nearest_lick > 2.25')
+    #get a random sample of correct rejections (non-change flashes without nearby licks)
+    event_dict['cr_events'] = cr_events.sample(min(100,len(cr_events)),random_state=0)['nearest_F_frame'] 
+    event_dict['cr_events'] = event_dict['cr_events'][pd.notnull(event_dict['cr_events'])].values
+    
+    # cast frames to int and drop nans
+    for event_type in event_dict.keys():
+        event_dict[event_type] = [int(frame) for frame in event_dict[event_type] if pd.notnull(frame)]
+
+    # set the event_dict as an attribute of the session:
+    return event_dict
+    
 
 def get_genotype_shorthand(genotype):
     '''
