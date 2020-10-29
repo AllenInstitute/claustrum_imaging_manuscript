@@ -40,6 +40,7 @@ class Session(object):
         self.mouse_folder = os.path.join(self.session_type_folder, mouse)
         self.cell_folder = os.path.join(self.mouse_folder, 'cell_images')
         self.session_type = session_type
+        self.mouse_id = mouse
         
         self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
         if session_type == 'active':
@@ -491,7 +492,7 @@ def get_responsiveness_data(session, window_size=1, behavior_condition='active')
     ]
     return pd.DataFrame(responsiveness_data)[cols_to_return]
 
-def build_responsiveness_summary(session,window_size=1):
+def build_responsiveness_summary(session,window_size=1.5):
     '''
     build a dataframe of containing summary data of integrals and means of activity in a pre/post stimulus window for every cell
     '''
@@ -521,23 +522,25 @@ def build_responsiveness_summary(session,window_size=1):
             post_stim_mean_all = cell_data.query('stim_condition == @stim_condition')['post_stim_mean'].dropna().mean()
             
             responsiveness_summary.append({
-                'cell_id':cell_id,
-                'condition':stim_condition,
-                'number_of_trials':len(cell_data.query('stim_condition == @stim_condition')),
-                'pre_stim_integral_mean':pre_stim_integral_mean,
-                'post_stim_integral_mean':post_stim_integral_mean,
-                'pre_stim_mean_all':pre_stim_mean_all,
-                'post_stim_mean_all':post_stim_mean_all,
-                'p-value_on_integrals':res_ints.pvalue,
-                'statistic_on_integrals':res_ints.statistic,
+                'cell_id': cell_id,
+                'mouse_id': session.mouse_id,
+                'condition': stim_condition,
+                'number_of_trials': len(cell_data.query('stim_condition == @stim_condition')),
+                'pre_stim_integral_mean': pre_stim_integral_mean,
+                'post_stim_integral_mean': post_stim_integral_mean,
+                'pre_stim_mean_all': pre_stim_mean_all,
+                'post_stim_mean_all': post_stim_mean_all,
+                'p-value_on_integrals': res_ints.pvalue,
+                'statistic_on_integrals': res_ints.statistic,
                 'direction_of_effect_on_integrals': np.sign(post_stim_integral_mean - pre_stim_integral_mean),
-                'p-value_on_means':res_means.pvalue,
-                'statistic_on_means':res_means.statistic,
+                'p-value_on_means': res_means.pvalue,
+                'statistic_on_means': res_means.statistic,
                 'direction_of_effect_on_means': np.sign(post_stim_mean_all - pre_stim_mean_all),
             })
 
     cols_to_return = [
         'cell_id', 
+        'mouse_id',
         'condition', 
         'number_of_trials', 
         'pre_stim_integral_mean', 
@@ -561,7 +564,10 @@ def get_cells_with_significant_responses(session, significance_level=0.05, metri
     return significant_responses.cell_id.unique()
 
 
-def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200, xlim=(-2,6), ylim=(-2,3)):
+def plot_examples(to_plot, session_dict, ax, frame_before=200, frame_after=200, xlim=(-2,6), ylim=(-2,3)):
+    '''
+    plot an array of example cells in all four active behavior conditions
+    '''
     
     colors = {
         'hit':'darkgreen',
@@ -573,13 +579,12 @@ def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200, xlim=(-2
     row=-1
     for idx, entry in to_plot.iterrows():
         row += 1
-        foldername = entry['foldername']
         cell_id = entry['cell_id']
-
+        mouse_id = entry['mouse_id']
         tdf = []
+        session = session_dict[mouse_id]
         for col,event in enumerate(['hit','fa','miss','cr']):
-            data_dict = data[foldername]
-            session = data_dict['session']
+            
             events = session.event_dict['{}_events'.format(event)] #data_dict['{}_events'.format(event)]
             dat = get_responses(session,cell_id,events,frame_before=frame_before,frame_after=frame_after)
             for ii in range(np.shape(dat['all_traces'])[0]):
@@ -587,7 +592,7 @@ def plot_examples(to_plot, data, ax, frame_before=200, frame_after=200, xlim=(-2
                 df['condition'] = event
                 df['repeat_number'] = ii
                 df['cell_id'] = cell_id
-                df['experiment'] = foldername
+                df['mouse_id'] = mouse_id
                 tdf.append(df)
         tdf = pd.concat(tdf)
 
