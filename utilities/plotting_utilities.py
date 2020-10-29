@@ -2,6 +2,7 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
 
@@ -103,21 +104,10 @@ def placeAxesOnGrid(
     return inner_ax
 
 
-def save_figure(
-    fig,
-    fname,
-    formats=['.png'],
-    transparent=False,
-    dpi=300,
-    **kwargs
-):
-
-    import matplotlib as mpl
-    mpl.rcParams['pdf.fonttype'] = 42
+def save_figure(fig, fname, formats=['.png'], transparent=False, dpi=300, **kwargs):
+    mpl.rcParams['pdf.fonttype'] = 42 # makes text editable
     if 'size' in kwargs.keys():
         fig.set_size_inches(kwargs['size'])
-    else:
-        fig.set_size_inches(11, 8.5)
     for f in formats:
         fig.savefig(
             fname + f,

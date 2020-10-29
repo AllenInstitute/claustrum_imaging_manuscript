@@ -227,7 +227,7 @@ def load_json(filename):
         dictionary = json.load(infile)
     return dictionary
 
-def find_nearest_index(array,value):
+def find_nearest_index(value, array):
     '''
     a convenience function the find the nearest index to a given value in an array
     '''
@@ -237,11 +237,11 @@ def find_nearest_index(array,value):
     else:
         return idx
     
-def find_nearest_value(array,value):
+def find_nearest_value(value, array):
     '''
     a convenience function the find the nearest value to a given value in an array
     '''
-    return array[find_nearest_index(array,value)]
+    return array[find_nearest_index(value, array)]
 
 def find_nearest_fluorescence_frame(behavior_frame,sync_data,temporal_downsample_factor=1.0,largest_allowable_difference=1./20,display_lag=0.035):
     behavior_event_time = sync_data['behavior_vsync'][int(behavior_frame)]+display_lag
