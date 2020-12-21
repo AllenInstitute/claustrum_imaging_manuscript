@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import ttest_ind,ttest_rel
@@ -815,3 +816,8 @@ def single_cell_heatmap(session, cell_id, events, ax=None, cbar=True, title=''):
     ax.set_title(title)
     ax.set_xticklabels([dat['t'][int(i)] for i in ax.get_xticks()]);
     ax.axvline(len(dat['t'])/2,color='white')
+=======
+version https://git-lfs.github.com/spec/v1
+oid sha256:f57ec2c20051cd517edff249f181b613b6afabd36b78c11b8492c09e60677148
+size 32694
+>>>>>>> 9c72ba05f8b42e226ff09ae6e7e351ebd21bb98e
