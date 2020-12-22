@@ -31,6 +31,20 @@ from visual_behavior_research.projects.tbd.Inscopix.pipeline import make_cell_ma
 from visual_behavior.translator.foraging import data_to_change_detection_core
 from visual_behavior.translator.core import create_extended_dataframe
 
+
+def load_anesthesia_session_from_disk(data_path,load_cached_traces_table=True):
+    '''
+    load anesthesia session
+    note that anesthesia sessions consist of two sessions recorded with a small break between:
+        session 1: 10-15 minutes in home cage
+        session 2: 20-30 minutes following initial isoflurane induction
+    Cells were matched across the two sessions using the Inscopix Data Analysis package, then combined into a single session
+    This method function on allen institute internal packages/databases
+    '''
+    session = tbd_Session(data_path, load_cached_traces_table=load_cached_traces_table)
+
+    return session
+
 def load_passive_session_from_disk(data_path,load_cached_traces_table=True):
     '''
     load passive stimulus session, add a column denoting the closest frame in the Inscopix video
