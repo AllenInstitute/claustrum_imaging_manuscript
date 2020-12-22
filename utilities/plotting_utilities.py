@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import matplotlib.gridspec as gridspec
 import numpy as np
 import matplotlib.pyplot as plt
@@ -116,8 +115,3 @@ def save_figure(fig, fname, formats=['.png'], transparent=False, dpi=300, **kwar
             orientation='landscape',
             dpi=dpi
         )
-=======
-version https://git-lfs.github.com/spec/v1
-oid sha256:af1a0c363220c62ba823583384c4038e38e25ebf30da582cf926a6058b456737
-size 3940
->>>>>>> 9c72ba05f8b42e226ff09ae6e7e351ebd21bb98e
