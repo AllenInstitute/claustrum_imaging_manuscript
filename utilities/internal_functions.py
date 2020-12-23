@@ -245,6 +245,16 @@ def get_genotype_shorthand(genotype):
     else:
         return 'unknown'
 
+def get_pre_iso_length(row):
+    '''
+    returns frame count of pre-anesthesia session for a given combined anesthesia session
+    '''
+    iso_summary = pd.read_csv('//olsenlab1/data/endoscope_imaging/iso_summary.csv')
+    full_path = row['full_path']
+    pre_iso_folder = iso_summary.query("combined_path == @full_path")['pre_iso_folder'].item()
+    filenames = tbdu.find_filenames(os.path.join(os.path.split(full_path)[0],pre_iso_folder))
+    return int(tbdu.parse_xml(filenames['xml_file'][0])['frames'])
+
 
 def save_cell_images(session, savepath, force_overwrite=True):
     '''

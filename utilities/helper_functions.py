@@ -37,7 +37,9 @@ class Session(object):
         self.session_type = session_type
         self.mouse_id = mouse
         
-        self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
+        if session_type == 'active' or session_type == 'passive':
+            self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
+
         if session_type == 'active':
             self.licks = pd.read_csv(os.path.join(self.mouse_folder, 'licks.csv'))
             self.rewards = pd.read_csv(os.path.join(self.mouse_folder, 'rewards.csv'))
@@ -585,3 +587,47 @@ def single_cell_heatmap(session, cell_id, events, ax=None, cbar=True, title=''):
     ax.set_title(title)
     ax.set_xticklabels([dat['t'][int(i)] for i in ax.get_xticks()]);
     ax.axvline(len(dat['t'])/2,color='white')
+
+def heat_plot(
+        traces,
+        t=None,
+        ax=None,
+        colorbar=True,
+        clim=[1, 5],
+        cmap='magma',
+        label='z-scored activity',
+        time_label = 't'
+    ):
+    '''
+    wrapper function for heatmap function
+    adds colorbar
+    '''
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(9, 5))
+    if type(traces) == pd.core.frame.DataFrame:
+        t = traces[time_label].values
+        heatmap = traces[[
+            col for col in traces.columns if col.startswith('C')]].values.T
+    else:
+        heatmap = traces
+    extent = [t[0], t[-1], np.shape(heatmap)[0], 0]
+    im = ax.imshow(
+        heatmap,
+        aspect='auto',
+        extent=extent,
+        clim=clim,
+        cmap=cmap,
+        # interpolation='none'
+    )
+    if colorbar is True:
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes(
+            "right",
+            size="5%",
+            pad=0.05,
+            aspect=2.3 / 0.15
+        )
+        plt.colorbar(im, cax=cax, extendfrac=20, label=label)
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('IC Number')
