@@ -2,11 +2,20 @@
 
 This is a repository containing code to generate figures for the claustrum imaging manuscript
 
-The conda environment is specified in `environment.yml`
+## setup
 
-Additional dependencies are:
-* Inscopix Data Processing Python API V1.2.1 - must be installed on local Python path
-* visual_behavior_research - https://github.com/AllenInstitute/visual_behavior_research.git
-* visual_behavior_analysis - https://github.com/AllenInstitute/visual_behavior_analysis.git
+    pip install -e .
+
+or
+
+    python setup.py
+
+Follow instructions in the `/data` folder readme to download necessary data (data not included in the github repository)
+
+## use
+
+Each `figure_X` folder contains a Jupyter Notebook with code to generate the given figure. Notebooks should be executed in order, or by selecting `cell > Run All`
+
+
 
 
