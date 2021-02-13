@@ -596,7 +596,9 @@ def heat_plot(
         clim=[1, 5],
         cmap='magma',
         label='z-scored activity',
-        time_label = 't'
+        time_label = 't',
+        cbar_ticklabel_fontsize=10,
+        cbar_label_fontsize=12
     ):
     '''
     wrapper function for heatmap function
@@ -628,6 +630,9 @@ def heat_plot(
             pad=0.05,
             aspect=2.3 / 0.15
         )
-        plt.colorbar(im, cax=cax, extendfrac=20, label=label)
+        cbar = plt.colorbar(im, cax=cax, extendfrac=20)
+        cbar.set_label(label=label, size=cbar_label_fontsize)
+        cbar.ax.tick_params(labelsize=cbar_ticklabel_fontsize)
+
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('IC Number')
