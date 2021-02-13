@@ -636,3 +636,49 @@ def heat_plot(
 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('IC Number')
+
+def make_traces_plot(
+        data,
+        N_ICs=None,
+        spread_factor=1,
+        scale_factor=0.25,
+        pad=1,
+        title=None,
+        height_scale=0.75,
+        colors=['blue'],
+        fig=None,
+        ax=None,
+        hide_yticks=False
+):
+    """
+    Extracts traces from dataframe that results from trace extraction in Mosaic
+    Makes a simple plot
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(9, 9 * height_scale))
+
+    ICs = [col for col in data.columns if 't' not in col]
+
+    if N_ICs is None:
+        N_ICs = len(ICs)
+
+    for col, IC in enumerate(ICs[:N_ICs]):
+        color = colors[col % len(colors)]
+        ax.plot(
+            data['t'] / 60.,
+            spread_factor * col + scale_factor * data[IC],
+            color=color
+        )
+
+    ax.set_xlabel('Time (minutes)')
+    ax.set_xlim(0, np.max(data['t']) / 60.)
+    ax.set_ylim(-spread_factor, N_ICs * spread_factor + pad)
+    if hide_yticks == True:
+        ax.set_yticks([])
+    if title:
+        ax.set_title(title)
+
+    if 'fig' in dir():
+        return fig, ax
+    else:
+        return ax
