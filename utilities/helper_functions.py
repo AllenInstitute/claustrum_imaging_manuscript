@@ -337,16 +337,16 @@ def get_cells_with_significant_responses(session, significance_level=0.05, metri
     return significant_responses.cell_id.unique()
 
 
-def plot_examples(to_plot, session_dict, ax, frame_before=200, frame_after=200, xlim=(-2,6), ylim=(-2,3)):
+def plot_examples(to_plot, session_dict, ax, frame_before=200, frame_after=200, xlim=(-2,6), ylim=(-2,3), first_index=None):
     '''
     plot an array of example cells in all four active behavior conditions
     '''
     
     colors = {
-        'hit':'darkgreen',
-        'fa':'firebrick',
-        'cr':'DarkSlateBlue',
-        'miss':'DarkOrange'
+        'hit':'gray',
+        'fa':'gray',
+        'cr':'gray',
+        'miss':'gray'
     }
 
     row=-1
@@ -369,18 +369,22 @@ def plot_examples(to_plot, session_dict, ax, frame_before=200, frame_after=200, 
                 tdf.append(df)
         tdf = pd.concat(tdf)
 
-        for col,event in enumerate(['hit','fa','miss','cr']):
+        for col, event in enumerate(['hit','fa','miss','cr']):
             sns.lineplot(
                 data = tdf.query('condition == "{}"'.format(event)),
                 x='t',
                 y='z_scored_activity',
                 ax = ax[row][col],
                 color=colors[event],
+                n_boot=100,
             )
-            ax[row][col].axvline(0,color='k',alpha=0.5,zorder=-np.inf,linewidth=3)
+            ax[row][col].axvline(0,color='k',alpha=0.5,zorder=-np.inf,linewidth=3, linestyle=':')
             ax[row][col].set_ylim(ylim[0], ylim[1])
             ax[row][col].set_xlim(xlim[0], xlim[1])
             ax[row][col].axis('off')
+            if first_index and col == 0:
+                ax[row][col].text(xlim[0] + 1, ylim[1] - 1.5, 'cell\n{}'.format(first_index + row), ha='center')
+
 
     for col,event_type in enumerate(['Hit\nTrials','False Alarm\nTrials','Miss\nTrials','Correct Rejection\nTrials']):
         ax[0][col].set_title(event_type,rotation=0,ha='center')
@@ -402,7 +406,7 @@ def plot_examples(to_plot, session_dict, ax, frame_before=200, frame_after=200, 
         linewidth=2
     )
     ax[row][0].text(-1,-1.25,'2 s',ha='center',va='top')
-    ax[row][0].text(-1.25,1,'5 SD',ha='right')
+    ax[row][0].text(-3,1,'5\nSD',ha='center')
 
     sns.despine()
     plt.subplots_adjust(wspace=0.05)
