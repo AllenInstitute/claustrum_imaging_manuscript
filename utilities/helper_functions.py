@@ -13,15 +13,6 @@ import os
 import pandas as pd
 import json
 
-import visual_behavior_research.utilities as vbu
-
-from visual_behavior_research.projects.tbd.identify_repeat_rois import Repeat_ROI_Identifier
-
-import isx
-from visual_behavior_research.projects.tbd.Inscopix.pipeline import make_cell_map,plot_cell_map
-
-from visual_behavior.translator.foraging import data_to_change_detection_core
-from visual_behavior.translator.core import create_extended_dataframe
 
 class Session(object):
     '''
