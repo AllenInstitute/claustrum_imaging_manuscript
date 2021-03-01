@@ -4,7 +4,21 @@ This is a repository containing code to generate figures for the claustrum imagi
 
 ## Setup
 
-    pip install -e .
+Running the notebooks in this repo in a dedicated environment is strongly encouraged. For example, if using Conda, create a new Python 3.7 environment as follows:
+
+    conda create -n claustrum_imaging_manuscript python=3.7
+
+Activate the environment:
+
+    conda activate claustrum_imaging_manuscript
+
+Then, to make the environment visible in Jupyter:
+
+    python -m ipykernel install --user --name claustrum_imaging_manuscript
+
+To install dependencies:
+
+    pip install .
 
 or
 
