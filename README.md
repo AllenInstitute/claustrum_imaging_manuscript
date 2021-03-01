@@ -1,6 +1,8 @@
 # claustrum_imaging_manuscript
 
-This is a repository containing code to generate figures for the claustrum imaging manuscript
+This is a repository containing code to generate figures for Ollerenshaw et al. "Anterior claustrum cells are responsive during behavioral processing but not passive sensory stimulation", 2021  
+BioRxiv link: NOT YET POSTED  
+
 
 ## Setup
 
