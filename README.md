@@ -1,7 +1,7 @@
 # claustrum_imaging_manuscript
 
-This is a repository containing code to generate figures for Ollerenshaw et al. "Anterior claustrum cells are responsive during behavioral processing but not passive sensory stimulation", 2021  
-BioRxiv link: NOT YET POSTED  
+This is a repository containing code to generate figures for Ollerenshaw, Davis, McBride, Shelton, Koch and Olsen, "Anterior claustrum cells are responsive during behavior but not passive sensory stimulation", 2021  
+BioRxiv link: https://www.biorxiv.org/content/10.1101/2021.03.23.436687v1
 
 
 ## Setup
@@ -27,6 +27,8 @@ or
     python setup.py
 
 Follow instructions in the `/data` folder readme to download necessary data (data not included in the github repository)
+
+Data includes extracted timeseries from each identified cell and tables holding stimulus/behavior data. Raw movies are not included.
 
 ## Use
 
