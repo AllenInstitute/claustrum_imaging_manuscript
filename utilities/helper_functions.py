@@ -14,14 +14,88 @@ import pandas as pd
 import json
 
 
+class AllenSDKExperiment(object):
+    '''
+    A class to simulate an AllenSDK BehaviorOphysExperiment object
+    This will allow us to pass data to code for running a Generalized Linear Model (GLM)
+    on the acquired data by structuring data in a way that the model expects
+    
+    Parameters:
+    -----------
+
+        
+    Returns:
+    --------
+    simulated AllenSDK BehaviorOphysExperiment object
+    '''
+
+    def __init__(self, claustrum_session):
+        self.ophys_timestamps = claustrum_session.traces['t']
+        self.mouse_id = claustrum_session.mouse_id
+
+        self.build_dff_traces(claustrum_session.filtered_traces)
+
+        self.build_cell_specimen_table()
+
+        self.build_stimulus_presentations(claustrum_session.visual_stimuli)
+
+        self.build_metadata()
+
+        self.licks = claustrum_session.licks.rename(columns = {'time': 'timestamps'})
+
+        self.rewards = claustrum_session.rewards.rename(columns = {'time': 'timestamps'})
+
+
+    def build_dff_traces(self, traces):
+        '''builds a dff_traces dataframe'''
+        traces_df = traces.set_index('t')
+        dff_traces = pd.DataFrame({
+            'cell_specimen_id': ['{}_{}'.format(self.mouse_id, cell_id) for cell_id in traces_df.columns],
+            'cell_roi_id': ['{}_{}'.format(self.mouse_id, cell_id) for cell_id in traces_df.columns],
+            'dff': [list(traces[cell_id]) for cell_id in traces_df.columns],
+        })
+        self.dff_traces = dff_traces.set_index('cell_specimen_id')
+
+
+    def build_cell_specimen_table(self):
+        cell_specimen_table = pd.DataFrame({
+            'cell_specimen_id': self.dff_traces.reset_index()['cell_specimen_id'].values,
+            'cell_roi_id': self.dff_traces['cell_roi_id'].values,
+            'valid_roi': pd.Series([True] * len(self.dff_traces)),
+        })
+        self.cell_specimen_table = cell_specimen_table.set_index('cell_specimen_id')
+
+
+    def build_stimulus_presentations(self, visual_stimuli):
+        stimulus_presentations = visual_stimuli
+        stimulus_presentations['omitted'] = False
+        stimulus_presentations = stimulus_presentations.rename(columns = {'time': 'start_time'})
+        stimulus_presentations['image_index'] = stimulus_presentations['image_name'].map(
+            lambda image_name: np.where(stimulus_presentations['image_name'].unique() == image_name)[0][0]
+        )
+        self.stimulus_presentations = stimulus_presentations
+
+    
+    def build_metadata(self):
+
+        self.metadata = {
+                'ophys_frame_rate': 20,
+                'ophys_experiment_id': None,
+            }
+
+
+
 class Session(object):
     '''
     reconstructs a session object from saved data in ../data
     A session object contains data from a single recording session as attributes
     only necessary data for analyses are stored to github
     '''
-    def __init__(self, mouse, session_type):
-        self.data_path = os.path.join(os.path.split(os.getcwd())[0],'data')
+    def __init__(self, mouse, session_type, data_path=None):
+        if data_path is None:
+            self.data_path = os.path.join(os.path.split(os.getcwd())[0],'data')
+        else:
+            self.data_path = data_path
         self.session_type_folder = os.path.join(self.data_path,'{}_sessions'.format(session_type))
         self.mouse_folder = os.path.join(self.session_type_folder, mouse)
         self.cell_folder = os.path.join(self.mouse_folder, 'cell_images')
@@ -46,11 +120,11 @@ class Session(object):
         self.cell_images = load_cell_images(os.path.join(self.mouse_folder, 'cell_images'))
         
 
-def load_session(mouse_id, session_type):
+def load_session(mouse_id, session_type, data_path=None):
     '''
     load a session as a Session object
     '''
-    return Session(mouse_id, session_type)
+    return Session(mouse_id, session_type, data_path=data_path)
 
             
 def load_cell_images(loadpath):
