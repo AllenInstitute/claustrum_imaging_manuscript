@@ -30,7 +30,9 @@ class AllenSDKExperiment(object):
     '''
 
     def __init__(self, claustrum_session):
-        self.ophys_timestamps = claustrum_session.traces['t']
+
+        self.ophys_timestamps = np.array(claustrum_session.sync_data['fluorescence_camera'][:len(claustrum_session.traces)])
+
         self.mouse_id = claustrum_session.mouse_id
 
         self.build_dff_traces(claustrum_session.filtered_traces)
@@ -44,6 +46,28 @@ class AllenSDKExperiment(object):
         self.licks = claustrum_session.licks.rename(columns = {'time': 'timestamps'})
 
         self.rewards = claustrum_session.rewards.rename(columns = {'time': 'timestamps'})
+
+        self.build_running_speed(claustrum_session)
+
+        self.build_trials(claustrum_session.trials)
+
+        self.licks = self.trim_table(self.licks, time_key = 'timestamps')
+        self.rewards = self.trim_table(self.rewards, time_key = 'timestamps')
+        self.running_speed = self.trim_table(self.running_speed, time_key = 'timestamps')
+        self.stimulus_presentations = self.trim_table(self.stimulus_presentations, time_key = 'start_time')
+
+    
+    def get_nearest_ophys_timestamp(self, t, ophys_timestamps):
+        return ophys_timestamps[np.argmin(np.abs(t - ophys_timestamps))]
+
+
+    def trim_table(self, table, time_key, threshold=0.05):
+        '''
+        trims out portion of table outside of ophys timestamps
+        '''
+        table['nearest_ophys_time'] = table[time_key].apply(lambda t: self.get_nearest_ophys_timestamp(t, self.ophys_timestamps))
+        table['time_to_nearest_ophys'] = np.abs(table[time_key] - table['nearest_ophys_time'])
+        return table.query('time_to_nearest_ophys <= @threshold')
 
 
     def build_dff_traces(self, traces):
@@ -73,6 +97,7 @@ class AllenSDKExperiment(object):
         stimulus_presentations['image_index'] = stimulus_presentations['image_name'].map(
             lambda image_name: np.where(stimulus_presentations['image_name'].unique() == image_name)[0][0]
         )
+        stimulus_presentations['is_change'] = stimulus_presentations['image_name'] != stimulus_presentations['image_name'].shift()
         self.stimulus_presentations = stimulus_presentations
 
     
@@ -82,6 +107,23 @@ class AllenSDKExperiment(object):
                 'ophys_frame_rate': 20,
                 'ophys_experiment_id': None,
             }
+
+    
+    def build_running_speed(self, claustrum_session):
+        '''
+        builds running_speed dataframe
+        '''
+        self.running_speed = claustrum_session.running.rename(columns = {'time': 'timestamps'})
+        self.running_speed['timestamps'] = claustrum_session.sync_data['behavior_vsync'][:len(self.running_speed)]
+
+
+    def build_trials(self, trials):
+        self.trials = trials
+        self.trials['auto_rewarded'] = self.trials['auto_rewarded'].fillna(0).astype(bool)
+        self.trials['hit'] = self.trials['response_type'] == 'HIT'
+        self.trials['miss'] = self.trials['response_type'] == 'MISS'
+        self.trials['false_alarm'] = self.trials['response_type'] == 'FA'
+        self.trials['correct_reject'] = self.trials['response_type'] == 'CR'
 
 
 
@@ -104,10 +146,12 @@ class Session(object):
         
         if session_type == 'active' or session_type == 'passive':
             self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
+            self.sync_data = load_json(os.path.join(self.mouse_folder, 'sync_data.json'))
 
         if session_type == 'active':
             self.licks = pd.read_csv(os.path.join(self.mouse_folder, 'licks.csv'))
             self.rewards = pd.read_csv(os.path.join(self.mouse_folder, 'rewards.csv'))
+            self.running = pd.read_csv(os.path.join(self.mouse_folder, 'running.csv'))
             self.visual_stimuli = pd.read_csv(os.path.join(self.mouse_folder, 'visual_stimuli.csv'))
             self.event_dict = load_json(os.path.join(self.mouse_folder, 'events.json'))
             
