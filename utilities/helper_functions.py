@@ -147,11 +147,11 @@ class Session(object):
         if session_type == 'active' or session_type == 'passive':
             self.trials = pd.read_csv(os.path.join(self.mouse_folder, 'trials.csv'))
             self.sync_data = load_json(os.path.join(self.mouse_folder, 'sync_data.json'))
+            self.running = pd.read_csv(os.path.join(self.mouse_folder, 'running.csv'))
 
         if session_type == 'active':
             self.licks = pd.read_csv(os.path.join(self.mouse_folder, 'licks.csv'))
             self.rewards = pd.read_csv(os.path.join(self.mouse_folder, 'rewards.csv'))
-            self.running = pd.read_csv(os.path.join(self.mouse_folder, 'running.csv'))
             self.visual_stimuli = pd.read_csv(os.path.join(self.mouse_folder, 'visual_stimuli.csv'))
             self.event_dict = load_json(os.path.join(self.mouse_folder, 'events.json'))
             

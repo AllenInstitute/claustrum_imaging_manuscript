@@ -23,6 +23,8 @@ import visual_behavior_research.plotting as vbp
 import visual_behavior_research.plotting.dro_plots as pf
 import visual_behavior_research.utilities as vbu
 
+from visual_behavior.encoder_processing.running_data_smoothing import process_encoder_data
+
 from visual_behavior_research.projects.tbd.identify_repeat_rois import Repeat_ROI_Identifier
 
 import isx
@@ -51,6 +53,21 @@ def load_passive_session_from_disk(data_path,load_cached_traces_table=True):
     this depends on allen institute internal packages/databases
     '''
     session = tbd_Session(data_path, load_cached_traces_table=load_cached_traces_table)
+
+    # add running data, which wasn't included in original file processing
+    data = pd.read_pickle(session.filenames['behavior_pkl'][0])
+
+    running_data_df = pd.DataFrame({
+        'timestamps': session.sync_data['behavior_vsync'],
+        'v_in': data['vin'],
+        'v_sig': data['vsig']
+    })
+    running_data = process_encoder_data(running_data_df, time_column='timestamps').rename(columns={'timestamps': 'time'})
+
+    running_data ['frame'] = np.arange(len(running_data ))
+    cols_to_keep = ['time','frame','v_in','v_sig','speed']
+
+    session.behavior_core_data['running'] = running_data[cols_to_keep]
 
     passive_stim_trials = session.behavior_core_data['trials']
     passive_stim_trials['nearest_F_frame'] = passive_stim_trials['startframe'].map(
